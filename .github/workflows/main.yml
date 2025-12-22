@@ -21,3 +21,11 @@ jobs:
 
       - name: Run script
         run: python "TEC and 4C/scripts/TEC_script.py"
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add "TEC and 4C/TEC files/"
+          git diff --staged --quiet || git commit -m "Auto-update TEC register $(date +'%Y-%m-%d')"
+          git push

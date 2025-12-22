@@ -17,7 +17,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install pandas openpyxl
+        run: pip install pandas openpyxl requests
 
       - name: Run script
         run: python "TEC and 4C/scripts/TEC_script.py"

@@ -1,27 +1,25 @@
 name: Weekly TEC download
-
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Every Monday at 09:00 UTC
-  workflow_dispatch:      # <-- This adds a manual trigger button in GitHub
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # <-- Add this section
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-
       - name: Install dependencies
         run: pip install pandas openpyxl requests
-
       - name: Run script
         run: python "TEC and 4C/scripts/TEC_script.py"
-
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"

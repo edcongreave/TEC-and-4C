@@ -25,7 +25,7 @@ import requests
 from requests.adapters import HTTPAdapter, Retry
 
 # --- CONFIG (YOUR FOLDER) ---
-OUTPUT_DIR = Path(r"C:\Users\Edwin.Congreave\git\TEC and 4C\TEC files")
+OUTPUT_DIR = Path(__file__).parent.parent / "TEC files"
 RESOURCE_ID = "17becbab-e3e8-473f-b303-3806f43a6a10"  # TEC register resource on CKAN
 BASE_URL = "https://api.neso.energy/api/3/action/datastore_search"
 PAGE_LIMIT = 50000
@@ -389,4 +389,5 @@ def main():
         return 1
 
 if __name__ == "__main__":
+
     raise SystemExit(main())

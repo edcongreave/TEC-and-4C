@@ -204,73 +204,82 @@ def get_pot_group(plant_type: str) -> str | None:
     
     return None
 
-def write_excel_report(change_data: dict, current_csv: Path):
-    """Creates a multi-sheet Excel report from the change data."""
+def write_excel_report(change_data: dict, current_csv: Path, out_dir: Path):
+    """Creates a multi-sheet Excel report from the change data.
+    Generates both a dated report and a 'latest' report that is overwritten."""
+    
+    # Dated report path
     report_path = current_csv.with_name(current_csv.stem + "_report.xlsx")
     
-    # Use Pandas ExcelWriter to handle multiple sheets
-    with pd.ExcelWriter(report_path, engine='openpyxl') as writer:
-        for pot_name, data in change_data.items():
-            sheet_name = pot_name.split('(')[0].strip() # e.g., "Pot 3" or "Pot 1"
-            
-            # 1. Create Summary DataFrame
-            summary_data = {
-                "Change Type": ["New Entries", "Deleted Entries", "Modified Entries"],
-                "Count": [len(data['new']), len(data['deleted']), len(data['changed'])]
-            }
-            df_summary = pd.DataFrame(summary_data)
-            
-            # 2. Create Detailed Records DataFrame
-            # First, process the 'changed' list to extract change details into columns
-            detailed_records = []
-            
-            # New/Deleted rows contain the full CSV row dict
-            for row in data['new']:
-                record = row.copy()
-                record['Change Type'] = 'NEW'
-                record['Change Details'] = 'New entry in TEC register.'
-                detailed_records.append(record)
+    # Latest report path (always the same name)
+    latest_report_path = out_dir / "TEC_report_latest.xlsx"
+    
+    # Write the Excel report to both locations
+    for target_path in [report_path, latest_report_path]:
+        with pd.ExcelWriter(target_path, engine='openpyxl') as writer:
+            for pot_name, data in change_data.items():
+                sheet_name = pot_name.split('(')[0].strip() # e.g., "Pot 3" or "Pot 1"
+                
+                # 1. Create Summary DataFrame
+                summary_data = {
+                    "Change Type": ["New Entries", "Deleted Entries", "Modified Entries"],
+                    "Count": [len(data['new']), len(data['deleted']), len(data['changed'])]
+                }
+                df_summary = pd.DataFrame(summary_data)
+                
+                # 2. Create Detailed Records DataFrame
+                # First, process the 'changed' list to extract change details into columns
+                detailed_records = []
+                
+                # New/Deleted rows contain the full CSV row dict
+                for row in data['new']:
+                    record = row.copy()
+                    record['Change Type'] = 'NEW'
+                    record['Change Details'] = 'New entry in TEC register.'
+                    detailed_records.append(record)
 
-            for row in data['deleted']:
-                record = row.copy()
-                record['Change Type'] = 'DELETED'
-                record.pop('_id', None) # Remove ID column if present
-                record['Change Details'] = 'Entry removed from TEC register.'
-                detailed_records.append(record)
+                for row in data['deleted']:
+                    record = row.copy()
+                    record['Change Type'] = 'DELETED'
+                    record.pop('_id', None) # Remove ID column if present
+                    record['Change Details'] = 'Entry removed from TEC register.'
+                    detailed_records.append(record)
 
-            # Modified rows need specific change details attached
-            for item in data['changed']:
-                record = item['new_row'].copy()
-                record['Change Type'] = 'MODIFIED'
-                record['Change Details'] = '; '.join(item['changes'])
-                detailed_records.append(record)
+                # Modified rows need specific change details attached
+                for item in data['changed']:
+                    record = item['new_row'].copy()
+                    record['Change Type'] = 'MODIFIED'
+                    record['Change Details'] = '; '.join(item['changes'])
+                    detailed_records.append(record)
 
-            # Convert to DataFrame
-            df_detail = pd.DataFrame(detailed_records)
-            
-            # Reorder columns to put Change Type/Details first
-            cols_to_move = ['Change Type', 'Change Details']
-            df_detail = df_detail[[c for c in cols_to_move if c in df_detail] + [c for c in df_detail if c not in cols_to_move]]
+                # Convert to DataFrame
+                df_detail = pd.DataFrame(detailed_records)
+                
+                # Reorder columns to put Change Type/Details first
+                cols_to_move = ['Change Type', 'Change Details']
+                df_detail = df_detail[[c for c in cols_to_move if c in df_detail] + [c for c in df_detail if c not in cols_to_move]]
 
-            # 3. Write to Excel
-            start_row = 0
-            
-            # Write Summary Table
-            df_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row)
-            
-            # Write a gap and a header for the detail table
-            start_row += len(df_summary) + 3 
-            
-            writer.sheets[sheet_name].cell(row=start_row, column=1, value="Detailed Change Records:")
-            
-            start_row += 1
-            
-            # Write Detailed Table
-            df_detail.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row)
-            
-            print(f"[OK] Wrote sheet: {sheet_name}")
+                # 3. Write to Excel
+                start_row = 0
+                
+                # Write Summary Table
+                df_summary.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row)
+                
+                # Write a gap and a header for the detail table
+                start_row += len(df_summary) + 3 
+                
+                writer.sheets[sheet_name].cell(row=start_row, column=1, value="Detailed Change Records:")
+                
+                start_row += 1
+                
+                # Write Detailed Table
+                df_detail.to_excel(writer, sheet_name=sheet_name, index=False, startrow=start_row)
+                
+                if target_path == report_path:
+                    print(f"[OK] Wrote sheet: {sheet_name}")
 
-    print(f"[OK] Excel report saved: {report_path}")
+    print(f"[OK] Dated Excel report saved: {report_path}")
+    print(f"[OK] Latest Excel report saved: {latest_report_path}")
 
 # --- MAIN COMPARISON LOGIC ---
 
@@ -355,7 +364,7 @@ def compare_registers(current_csv: Path, out_dir: Path):
 
     # 4. Write Excel Report (Only if any changes exist)
     if any(len(data['new']) + len(data['deleted']) + len(data['changed']) > 0 for data in change_data.values()):
-        write_excel_report(change_data, current_csv)
+        write_excel_report(change_data, current_csv, out_dir)
     else:
         print("[INFO] No relevant changes found in target categories.")
 
@@ -389,5 +398,4 @@ def main():
         return 1
 
 if __name__ == "__main__":
-
     raise SystemExit(main())
